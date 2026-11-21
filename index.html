@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build Smart - RCC & Brick Calculator</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e3a8a">
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; background: #f1f5f9; color: #0f172a; padding: 16px; }
+    .container { max-width: 480px; margin: 0 auto; }
+    .header { background: #1e3a8a; color: #fff; padding: 18px; border-radius: 14px; text-align: center; margin-bottom: 14px; }
+    .header h1 { margin: 0; font-size: 20px; }
+    .header p { margin: 4px 0 0; font-size: 12px; opacity: 0.85; }
+    
+    /* Tabs */
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; background: #e2e8f0; padding: 5px; border-radius: 12px; }
+    .tab-btn { flex: 1; padding: 10px; border: none; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; background: transparent; color: #475569; transition: 0.2s; }
+    .tab-btn.active { background: #1e3a8a; color: #fff; box-shadow: 0 2px 6px rgba(30,58,138,0.25); }
+
+    .card { background: #fff; padding: 18px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #334155; }
+    input, select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; margin-bottom: 14px; background: #f8fafc; }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+    .calc-btn { width: 100%; background: #1e3a8a; color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .calc-btn:active { background: #172554; }
+    
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .res-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 10px; text-align: center; }
+    .res-box.highlight { background: #fef3c7; border-color: #fde68a; }
+    .res-box.highlight .res-val { color: #b45309; }
+    .res-title { font-size: 12px; color: #475569; font-weight: 600; }
+    .res-val { font-size: 20px; font-weight: 800; color: #1e3a8a; margin: 4px 0; }
+    .res-sub { font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Build Smart Estimator</h1>
+      <p>Void Architecture Studio</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-rcc" onclick="switchTab('rcc')">RCC Concrete</button>
+      <button class="tab-btn" id="tab-brick" onclick="switchTab('brick')">Brickwall</button>
+    </div>
+
+    <!-- SECTION 1: RCC CALCULATOR -->
+    <div id="sec-rcc">
+      <div class="card">
+        <div class="row">
+          <div>
+            <label>Input Unit</label>
+            <select id="unit" onchange="toggleInputs()">
+              <option value="m3">Direct Volume (m³)</option>
+              <option value="cft">Direct Volume (CFT)</option>
+              <option value="dim_ft">Dimensions (Feet)</option>
+            </select>
+          </div>
+          <div>
+            <label>Concrete Grade</label>
+            <select id="grade">
+              <option value="1:2:4">M15 (1:2:4)</option>
+              <option value="1:1.5:3" selected>M20 (1:1.5:3)</option>
+              <option value="1:1:2">M25 (1:1:2)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="vol-box">
+          <label id="vol-label">Wet Concrete Volume (m³)</label>
+          <input type="number" id="volume" placeholder="e.g. 10" step="any">
+        </div>
+
+        <div id="dim-box" style="display:none;">
+          <div class="row">
+            <div>
+              <label>Length (ft)</label>
+              <input type="number" id="len" placeholder="10" step="any">
+            </div>
+            <div>
+              <label>Width (ft)</label>
+              <input type="number" id="wid" placeholder="10" step="any">
+            </div>
+            <div>
+              <label>Thick (inch)</label>
+              <input type="number" id="thk" placeholder="5" step="any">
+            </div>
+          </div>
+        </div>
+
+        <label>Steel Percentage (% of Concrete Volume)</label>
+        <input type="number" id="steelPct" value="1.0" step="0.1">
+
+        <button class="calc-btn" onclick="calculateRCC()">Calculate RCC Material</button>
+      </div>
+
+      <div class="card" id="output-rcc" style="display:none;">
+        <label style="margin-bottom:12px;">RCC Quantities (Dry Factor 1.54)</label>
+        <div class="result-grid">
+          <div class="res-box">
+            <div class="res-title">CEMENT</div>
+            <div class="res-val" id="cementBags">0</div>
+            <div class="res-sub">Bags (50 kg)</div>
+          </div>
+          <div class="res-box">
+            <div class="res-title">TMT STEEL</div>
+            <div class="res-val" id="steelKg">0</div>
+            <div class="res-sub">kg (7850 kg/m³)</div>
+          </div>
+          <div class="res-box">
+            <div class="res-title">SAND (FINE)</div>
+            <div class="res-val" id="sandCft">0</div>
+            <div class="res-sub" id="sandM3">0 m³</div>
+          </div>
+          <div class="res-box">
+            <div class="res-title">AGGREGATE</div>
+            <div class="res-val" id="aggCft">0</div>
+            <div class="res-sub" id="aggM3">0 m³</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: BRICKWALL CALCULATOR -->
+    <div id="sec-brick" style="display:none;">
+      <div class="card">
+        <div class="row">
+          <div>
+            <label>Wall Length (ft)</label>
+            <input type="number" id="bLen" placeholder="e.g. 12" step="any">
+          </div>
+          <div>
+            <label>Wall Height (ft)</label>
+            <input type="number" id="bHgt" placeholder="e.g. 10" step="any">
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Wall Thickness</label>
+            <select id="wallThick">
+              <option value="0.375">4.5" (Half Wall)</option>
+              <option value="0.75" selected>9" (Full Wall)</option>
+            </select>
+          </div>
+          <div>
+            <label>Mortar Ratio</label>
+            <select id="mortarRatio">
+              <option value="4">1:4 (Rich / 4.5")</option>
+              <option value="5" selected>1:5 (Standard)</option>
+              <option value="6">1:6 (9" Wall)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Brick Size (mm)</label>
+            <select id="brickSize">
+              <option value="200,100,100">200 × 100 × 100 mm</option>
+              <option value="230,115,75" selected>230 × 115 × 75 mm</option>
+            </select>
+          </div>
+          <div>
+            <label>Deduction (sq.ft)</label>
+            <input type="number" id="deductSqft" value="0" placeholder="Door/Window" step="any">
+          </div>
+        </div>
+
+        <button class="calc-btn" onclick="calculateBrick()">Calculate Brick & Mortar</button>
+      </div>
+
+      <div class="card" id="output-brick" style="display:none;">
+        <label style="margin-bottom:12px;">Brickwork Quantities (10mm Mortar Joint)</label>
+        <div class="result-grid">
+          <div class="res-box highlight" style="grid-column: span 2;">
+            <div class="res-title">TOTAL BRICKS (WITH 5% WASTAGE)</div>
+            <div class="res-val" id="totalBricks">0</div>
+            <div class="res-sub" id="netVolSub">Net Volume: 0 m³</div>
+          </div>
+          <div class="res-box">
+            <div class="res-title">CEMENT</div>
+            <div class="res-val" id="bCementBags">0</div>
+            <div class="res-sub">Bags (50 kg)</div>
+          </div>
+          <div class="res-box">
+            <div class="res-title">SAND (MORTAR)</div>
+            <div class="res-val" id="bSandCft">0</div>
+            <div class="res-sub" id="bSandM3">0 m³</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('sec-rcc').style.display = tab === 'rcc' ? 'block' : 'none';
+      document.getElementById('sec-brick').style.display = tab === 'brick' ? 'block' : 'none';
+      document.getElementById('tab-rcc').classList.toggle('active', tab === 'rcc');
+      document.getElementById('tab-brick').classList.toggle('active', tab === 'brick');
+    }
+
+    function toggleInputs() {
+      const unit = document.getElementById('unit').value;
+      document.getElementById('vol-box').style.display = unit === 'dim_ft' ? 'none' : 'block';
+      document.getElementById('dim-box').style.display = unit === 'dim_ft' ? 'block' : 'none';
+      if (unit === 'm3') document.getElementById('vol-label').innerText = 'Wet Concrete Volume (m³)';
+      if (unit === 'cft') document.getElementById('vol-label').innerText = 'Wet Concrete Volume (CFT)';
+    }
+
+    function calculateRCC() {
+      const unit = document.getElementById('unit').value;
+      let wetM3 = 0;
+
+      if (unit === 'm3') {
+        wetM3 = parseFloat(document.getElementById('volume').value) || 0;
+      } else if (unit === 'cft') {
+        const cft = parseFloat(document.getElementById('volume').value) || 0;
+        wetM3 = cft / 35.3147;
+      } else {
+        const l = parseFloat(document.getElementById('len').value) || 0;
+        const w = parseFloat(document.getElementById('wid').value) || 0;
+        const t = (parseFloat(document.getElementById('thk').value) || 0) / 12;
+        wetM3 = (l * w * t) / 35.3147;
+      }
+
+      if (wetM3 <= 0) {
+        alert('Please enter valid dimensions or volume');
+        return;
+      }
+
+      const grade = document.getElementById('grade').value.split(':').map(Number);
+      const sumRatio = grade[0] + grade[1] + grade[2];
+      const dryVol = wetM3 * 1.54;
+
+      const cementM3 = (grade[0] / sumRatio) * dryVol;
+      const cementBags = Math.ceil(cementM3 / 0.0347);
+
+      const sandM3 = (grade[1] / sumRatio) * dryVol;
+      const sandCft = sandM3 * 35.3147;
+
+      const aggM3 = (grade[2] / sumRatio) * dryVol;
+      const aggCft = aggM3 * 35.3147;
+
+      const steelPct = parseFloat(document.getElementById('steelPct').value) || 0;
+      const steelKg = wetM3 * (steelPct / 100) * 7850;
+
+      document.getElementById('cementBags').innerText = cementBags;
+      document.getElementById('steelKg').innerText = steelKg.toFixed(1);
+      document.getElementById('sandCft').innerText = sandCft.toFixed(1) + ' cft';
+      document.getElementById('sandM3').innerText = sandM3.toFixed(2) + ' m³';
+      document.getElementById('aggCft').innerText = aggCft.toFixed(1) + ' cft';
+      document.getElementById('aggM3').innerText = aggM3.toFixed(2) + ' m³';
+      document.getElementById('output-rcc').style.display = 'block';
+    }
+
+    function calculateBrick() {
+      const l = parseFloat(document.getElementById('bLen').value) || 0;
+      const h = parseFloat(document.getElementById('bHgt').value) || 0;
+      const thickFt = parseFloat(document.getElementById('wallThick').value) || 0.75;
+      const deductSqft = parseFloat(document.getElementById('deductSqft').value) || 0;
+
+      const netAreaSqft = (l * h) - deductSqft;
+      if (netAreaSqft <= 0) {
+        alert('Please enter valid wall length and height');
+        return;
+      }
+
+      const wallVolCft = netAreaSqft * thickFt;
+      const wallVolM3 = wallVolCft / 35.3147;
+
+      // Brick dimensions in meters
+      const [bl, bw, bh] = document.getElementById('brickSize').value.split(',').map(v => Number(v) / 1000);
+      const actualBrickVol = bl * bw * bh;
+      const mortarBrickVol = (bl + 0.01) * (bw + 0.01) * (bh + 0.01);
+
+      const exactBricks = wallVolM3 / mortarBrickVol;
+      const totalBricksWithWastage = Math.ceil(exactBricks * 1.05);
+
+      // Wet mortar volume = Wall volume - Volume of actual bricks
+      const wetMortarM3 = wallVolM3 - (exactBricks * actualBrickVol);
+      const dryMortarM3 = wetMortarM3 * 1.33;
+
+      const sandRatio = Number(document.getElementById('mortarRatio').value);
+      const sumRatio = 1 + sandRatio;
+
+      const cementM3 = (1 / sumRatio) * dryMortarM3;
+      const cementBags = Math.ceil(cementM3 / 0.0347);
+
+      const sandM3 = (sandRatio / sumRatio) * dryMortarM3;
+      const sandCft = sandM3 * 35.3147;
+
+      document.getElementById('totalBricks').innerText = totalBricksWithWastage.toLocaleString('en-IN') + ' Nos';
+      document.getElementById('netVolSub').innerText = `Net Wall: ${wallVolCft.toFixed(1)} CFT (${wallVolM3.toFixed(2)} m³)`;
+      document.getElementById('bCementBags').innerText = cementBags;
+      document.getElementById('bSandCft').innerText = sandCft.toFixed(1) + ' cft';
+      document.getElementById('bSandM3').innerText = sandM3.toFixed(2) + ' m³';
+      document.getElementById('output-brick').style.display = 'block';
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
+</body>
+</html>
